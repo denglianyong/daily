@@ -28,7 +28,7 @@ wget到/usr/local/src
 nginx高性能原因总结：
 1.CPU:设置CPU亲和度，worker绑定一个CPU，降低切换代价
 2.内存管理：设计内存池，大小内存分别管理，统一申请释放，减少内存碎片
-3.异步AIO
+3.异步AIO，mutux防止accept惊群，buf chain实现零拷贝，mmap文件映射
 4.事件驱动框架：调用epoll实现reactor，异步回调方式
 5.多进程多线程架构设计：进程间资源独立，减少锁的等待
 
