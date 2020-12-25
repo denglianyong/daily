@@ -22,9 +22,23 @@ root 启动  需要配置user=root
  set follow-fork-mode child 
  追踪子进程
 
-openssl，pcre  等库 wget到/usr/local/src
+openssl，pcre,zlib  等库，直接yum 
+wget到/usr/local/src
+
+nginx高性能原因总结：
+1.CPU:设置CPU亲和度，worker绑定一个CPU，降低切换代价
+2.内存管理：设计内存池，大小内存分别管理，统一申请释放，减少内存碎片
+3.异步AIO
+4.事件驱动框架：调用epoll实现reactor，异步回调方式
+5.多进程多线程架构设计：进程间资源独立，减少锁的等待
 
 
+
+
+
+
+
+附录：
 安装增强工具
 报错，先eject 光盘，安装增强功能
 
