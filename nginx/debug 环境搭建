@@ -28,6 +28,11 @@ wget到/usr/local/src
 C_INCLUDE_PATH 添加如下路径，防止eclipse找不到头文件
 /home/orion/workspace/nginx/src/core:/home/orion/workspace/nginx/src/event:/home/orion/workspace/nginx/src/http:/home/orion/workspace/nginx/src/mail:/home/orion/workspace/nginx/src/os/unix
 
+/usr/include:/usr/local/include:/usr/lib/gcc/x86_64-redhat-linux/4.8.5/include:
+
+
+
+
 nginx高性能原因总结：
 1.CPU:设置CPU亲和度，worker绑定一个CPU，降低切换代价
 2.内存管理：设计内存池，大小内存分别管理，统一申请释放，减少内存碎片
