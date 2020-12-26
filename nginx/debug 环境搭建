@@ -43,6 +43,8 @@ nginx高性能原因总结：
  ./nginx -s stop 
 
 
+can not dective int  size：重启虚拟机OS解决
+
 附录：
 安装增强工具
 报错，先eject 光盘，安装增强功能
