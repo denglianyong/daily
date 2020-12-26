@@ -50,6 +50,9 @@ nginx高性能原因总结：
 
 can not dective int  size：重启虚拟机OS解决
 
+编译能通过，但 变量有红叉，无法解析
+Project -> C/C++ index ->  Freshen all files
+
 附录：
 安装增强工具
 报错，先eject 光盘，安装增强功能
