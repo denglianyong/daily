@@ -34,8 +34,10 @@ nginx高性能原因总结：
 
 
 
-
-
+强制杀进程
+ ps  aux|grep nginx|grep -v grep |awk '{ print  $2 } '|xargs kill -9 
+ 优雅杀进程  在objs目录下 
+ ./nginx -s stop 
 
 
 附录：
