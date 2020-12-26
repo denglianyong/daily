@@ -28,7 +28,7 @@ wget到/usr/local/src
 C_INCLUDE_PATH 添加如下路径，防止eclipse找不到头文件
 /home/orion/workspace/nginx/src/core:/home/orion/workspace/nginx/src/event:/home/orion/workspace/nginx/src/http:/home/orion/workspace/nginx/src/mail:/home/orion/workspace/nginx/src/os/unix
 
-/usr/include:/usr/local/include:/usr/lib/gcc/x86_64-redhat-linux/4.8.5/include:
+/usr/include:/usr/include/sys:/usr/local/include:/usr/lib/gcc/x86_64-redhat-linux/4.8.5/include:
 
 
 
