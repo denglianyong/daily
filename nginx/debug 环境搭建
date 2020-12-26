@@ -60,6 +60,9 @@ Project -> C/C++ index ->  Freshen all files
 centos root 密码   deng=6759929
 ubuntu  orion 密码  deng=123456
 
+eclipse 添加-lpthread
+Project->Properties->C/C++ Build->Settings->GCC C++ Linker->Libraries
+
 
 eclipse for C/C++ 官网下载
 https://www.eclipse.org/downloads/download.php?file=/technology/epp/downloads/release/oxygen/3a/eclipse-cpp-oxygen-3a-linux-gtk-x86_64.tar.gz&mirror_id=1290
