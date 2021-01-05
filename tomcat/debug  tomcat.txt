@@ -1,0 +1,16 @@
+Tomcat8 HTTP协议处理流程：
+NioEndpoint.Acceptor  接收socket -> setSocketOptions(socket)
+getPoller0().register(channel) 向poller的selector注册
+NioEndpoint.run ->doRun->processKey->processSocket
+SocketProcessor=createSocketProcessor
+SocketProcessor.doRun
+    AbstractProtocol.ConnectonHandler.process
+Http11Processor.process
+AbstractProcessorLight.process->Http11Processor.service(socketWrapper)  service里解析http协议
+                                                 prepareRequestProtocol();解析http请求头
+							      prepareRequest();
+CoyoteAapter.service(request, response) 
+    Connector.getService().getContainer().getPipeline().getFirst().invoke(request, response)  进入容器流水线
+StandardService->StandardEngine->Pipeline->StandardEngineValve->
+StandardHost->StandardHostValve->StandardContextValve
+>StandardWrapper  进入spring业务代码
