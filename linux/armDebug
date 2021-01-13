@@ -159,4 +159,10 @@ build
 
 echo "Done"
 
-https://www.cnblogs.com/hzcya1995/p/13333000.html
+启动命令  无UI
+qemu-system-arm -M vexpress-a9 -m 512M -dtb linux-4.4.1/arch/arm/boot/dts/vexpress-v2p-ca9.dtb -kernel linux-4.4.1/arch/arm/boot/zImage -nographic -append "root=/dev/mmcblk0 rw console=ttyAMA0" -sd rootfs.ext3
+
+启动命令  带UI
+qemu-system-arm -M vexpress-a9 -m 512M -dtb linux-4.4.1/arch/arm/boot/dts/vexpress-v2p-ca9.dtb -kernel linux-4.4.1/arch/arm/boot/zImage -append "root=/dev/mmcblk0 rw console=tty0" -sd rootfs.ext3
+
+
