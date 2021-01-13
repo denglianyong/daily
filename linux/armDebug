@@ -78,9 +78,21 @@ function make_rootfs() {
  rm -rf rootfs
  mkdir -p rootfs/lib
  mkdir -p rootfs/dev
+ 
+mkdir -p rootfs/etc/init.d
+cat > rootfs/etc/init.d/rcS <<EOF
+#!/bin/sh
+mkdir /proc
+mkdir /sys
+mount -t proc proc /proc
+mount -t sysfs sysfs /sys
+mdev -s
+EOF
+chmod +x etc/init.d/rcS
 
  cp -Pvf /usr/arm-linux-gnueabihf/lib/* rootfs/lib
  cp busybox-${BUSYBOX_VERSION}/_install/* rootfs/ -rf
+ 
 
  dd if=/dev/zero of=rootfs.ext3 bs=1M count=128
  mkfs.ext3 rootfs.ext3
