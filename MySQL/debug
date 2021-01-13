@@ -1,0 +1,56 @@
+mysql 5.7环境搭建
+https://www.cnblogs.com/zengkefu/p/5654967.html
+
+注意：用eclipse的用户进行编译，否则用root 生成makefile  eclipse无法导入和编译
+
+cmake \
+-DCMAKE_INSTALL_PREFIX=/home/orion/workspace/mysql/ \
+-DMYSQL_DATADIR=/home/orion/workspace/mysql/data \
+-DSYSCONFDIR=/etc \
+-DWITH_MYISAM_STORAGE_ENGINE=1 \
+-DWITH_INNOBASE_STORAGE_ENGINE=1 \
+-DWITH_MEMORY_STORAGE_ENGINE=1 \
+-DWITH_READLINE=1 \
+-DMYSQL_UNIX_ADDR=/home/orion/workspace/mysql/mysql.sock \
+-DMYSQL_TCP_PORT=3306 \
+-DENABLED_LOCAL_INFILE=1 \
+-DWITH_PARTITION_STORAGE_ENGINE=1 \
+-DEXTRA_CHARSETS=all \
+-DDEFAULT_CHARSET=utf8 \
+-DDEFAULT_COLLATION=utf8_general_ci \
+-DWITH_DEBUG=1  \
+-DDOWNLOAD_BOOST=1 -DWITH_BOOST=/tmp -DDOWNLOAD_BOOST_TIMEOUT=60000
+boost 只能自动安装，否则版本不对
+
+
+make && make install
+ 
+scripts/mysql_install_db --basedir=/home/orion/workspace/mysql/ --datadir=/home/orion/workspace/mysql/data --user=mysql
+
+./bin/mysql_install_db --basedir=/home/orion/workspace/mysql/ --datadir=/home/orion/workspace/mysql/data --user=mysql
+
+ 
+源码安装完MySQL之后,使用Debug模式启动
+bin/mysqld --debug --console &
+bin/mysqld --debug=d,info --user=mysql --basedir=/home/orion/workspace/mysql/
+
+
+
+设置 root 密码
+# /etc/init.d/mysql stop
+# mysqld_safe --user=mysql --skip-grant-tables --skip-networking &
+# mysql -u root mysql
+mysql> update mysql.user set authentication_string=password('deng=123456') where user='root' and Host = 'localhost'; 
+mysql> FLUSH PRIVILEGES;
+mysql> quit 
+
+ALTER USER USER() IDENTIFIED BY 'deng=123456';
+
+mysql -uroot -p 
+
+
+mysql 密码 ：deng=123456
+
+
+删除cmake缓存，重新编译
+rm CMakeCache.txt 
