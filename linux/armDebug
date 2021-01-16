@@ -166,3 +166,6 @@ qemu-system-arm -M vexpress-a9 -m 512M -dtb linux-4.4.1/arch/arm/boot/dts/vexpre
 qemu-system-arm -M vexpress-a9 -m 512M -dtb linux-4.4.1/arch/arm/boot/dts/vexpress-v2p-ca9.dtb -kernel linux-4.4.1/arch/arm/boot/zImage -append "root=/dev/mmcblk0 rw console=tty0" -sd rootfs.ext3
 
 
+debug kernel
+https://www.cnblogs.com/syw-casualet/p/5271369.html
+
