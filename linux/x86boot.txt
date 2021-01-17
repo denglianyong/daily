@@ -8,3 +8,111 @@ arch/x86/boot/compressed/head_64.S: jump to the decompressed kernel entry point 
 arch/x86/kernel/head_64.S: start to execute at label "startup_64", then call "x86_64_start_kernel".
 arch/x86/kernel/head64.c: executing "x86_64_start_kernel", it call "x86_64_start_reservations", "x86_64_start_reservations" call "start_kernel".
 init/main.c: start executing "start_kernel".
+
+
+
+
+
+32位  启动过程 到init
+arch/x86/boot/header.S:    
+	--->header第一部分(以前的bootsector.S)：		载入bootloader到0x7c00处，设置内核属性
+	--->_start()		bzImage映像的入口点（实模式）,header的第二部分(以前的setup.S)
+		--->code32_start=0x100000		0x100000为解压后的内核的载入地址（1M高端地址）
+		--->设置大量的bootloader参数、创建栈空间、检查签名、清空BSS
+		--->arch/x86/boot/main.c:main()		实模式内核的主函数
+			--->copy_boot_params()	 把位于第一个扇区的参数复制到boot_params变量中，boot_params位于setup的数据段
+			--->检查内存布局、设置键盘击键重复频率、查询Intel SpeedStep(IST)信息
+			--->设置视频控制器模式、解析命令行参数以便传递给decompressor
+			--->arch/x86/boot/pm.c:go_to_protected_mode()		进入保护模式
+				--->屏蔽PIC中的所有中断、设置GDT和IDT
+				--->arch/x86/boot/pmjump.S:protected_mode_jump(boot_params.hdr.code32_start,...)  跳转到保护模式
+					--->in_pm32()  跳转到32位保护模式的入口处（即0x100000处）
+						--->jmpl *%eax	跳转到arch/i386/boot/compressed/head_32.S:startup_32()处执行
+						
+arch/i386/boot/compressed/head_32.S:startup_32()		保护模式下的入口函数		
+	--->leal	boot_stack_end(%ebx), %esp		设置堆栈
+	--->拷贝压缩的内核到缓冲区尾部
+	--->清空BSS
+	--->compressed/misc.c:decompress_kernel()		解压内核
+		--->lib/decompress_bunzip2.c:decompress()
+			--->lib/decompress_bunzip2.c:bunzip2()
+				--->lib/decompress_bunzip2.c:start_bunzip()   解压动作
+		--->parse_elf()		将解压后的内核ELF文件（.o文件）解析到内存中
+	--->计算vmlinux编译时的运行地址与实际装载地址的距离
+	--->jmp *%ebp		跳转到解压后的内核的arch/x86/kernel/head_32.S:startup_32()处运行
+		
+arch/x86/kernel/head_32.S:startup_32()		32位内核的入口函数，即进程0（也称为清除进程）
+	--->拷贝boot_params以及boot_command_line
+	--->初始化页表：这会创建PDE和页表集
+	--->开启内存分页功能
+	--->为可选的浮点单元（FPU）检测CPU类型
+	--->head32.c:i386_start_kernel()		
+		--->init/main.c:start_kernel()  Linux内核的启动函数，包含创建rootfs，加载内核模块和cpio-initrd
+			--->很多初始化操作
+			--->setup_command_line()  把内核启动参数复制到boot_command_line数组中
+			--->parse_early_param()		体系结构代码会先调用这个函数，做时期的参数检查
+				--->parse_early_options()
+					--->do_early_param()		检查早期的参数
+			--->parse_args()		解析模块的参数
+			--->fs/dcache.c:vfs_caches_init()		创建基于内存的rootfs（一个VFS）
+				--->fs/namespace.c:mnt_init()
+					--->fs/ramfs/inode.c:init_rootfs()
+						--->fs/filesystems.c:register_filesystem()		注册rootfs
+					--->fs/namespace.c:init_mount_tree()                
+						--->fs/super.c:do_kern_mount()		在内核中挂载rootfs
+						--->fs/fs_struct.c:set_fs_root()	将rootfs配置为当前内存中的根文件系统
+			--->rest_init()
+				--->arch/x86/kernel/process.c:kernel_thread(kernel_init,...)  启动一个内核线程来运行kernel_init函数，进行内核初始化
+				--->cpu_idle()                             进入空闲循环
+				--->调度器周期性的接管控制权，提供多任务处理
+				
+init/main.c:kernel_init()	内核初始化过程入口函数，加载initramfs或cpio-initrd，或传统的image-initrd，把工作交给它
+	--->sys_open("/dev/console",...)		启动控制台设备
+	--->do_basic_setup()
+		--->do_initcalls()		启动所有静态编译进内核的模块
+			--->init/initramfs.c:populate_rootfs()		初始化rootfs
+				--->unpack_to_rootfs()		把initramfs或cpio-initrd解压释放到rootfs
+				--->如果是image-initrd则拷贝到/initrd.image
+####################################### 传统的image-initrd情形 ###########################################
+	--->rootfs中没有/init文件
+	--->do_mounts.c:prepare_namespace()	加载image-initrd，并运行它的/linuxrc文件，以挂载实际的文件系统
+		--->do_mounts_initrd.c:initrd_load()		把image-initrd数据加载到默认设备/dev/ram0中
+			--->do_mounts_rd.c:rd_load_image()		加载image-initrd映像
+				--->identify_ramdisk_image()	识别initrd，确定是romfs、squashfs、minix，还是ext2
+				--->crd_load()		解压并为ramdisk分配空间，计算循环冗余校验码
+					--->lib/inflate.c:gunzip()		对gzip格式的ramdisk进行解压
+			--->do_mounts_initrd.c:handle_initrd()	指定的根设备不是/dev/ram0，由initrd来挂载真正的根文件系统
+				--->mount_block_root("/dev/root.old",...)		将initrd挂载到rootfs的/root下
+				--->arch/x86/kernel/process.c:kernel_thread(do_linuxrc, "/linuxrc",...)  启动一个内核线程来运行do_linuxrc函数
+					--->do_mounts_initrd.c:do_linuxrc()
+						--->arch/x86/kernel/sys_i386_32.c:kernel_execve()	运行image-initrd中的/linuxrc
+				--->将initrd移动到rootfs的/old下
+				--->若在linuxrc中根设备重新设成Root_RAM0，则返回，说明image-initrd直接作为最终的根文件系统
+				--->do_mounts.c:mount_root()	否则将真正的根文件系统挂载到rootfs的/root下，并切换到这个目录下
+					--->mount_block_root()
+						--->do_mount_root()
+							--->fs/namespace.c:sys_mount()		挂载到"/root"
+				--->卸载initrd，并释放它的内存
+		--->do_mounts.c:mount_root()	没有指定另外的根设备，则initrd直接作为真正的根文件系统而被挂载
+		--->fs/namespace.c:sys_mount(".", "/",...)		根文件挂载成功，移动到根目录"/"
+########################################################################################################
+	--->init/main.c:init_post()		启动用户空间的init进程
+		--->run_init_process(ramdisk_execute_command)	  若加载了initramfs或cpio-initrd，则运行它的/init
+		--->run_init_process("/sbin/init")		否则直接运行用户空间的/sbin/init
+			--->arch/x86/kernel/sys_i386_32.c:kernel_execve()  运行用户空间的/sbin/init程序，并分配pid为1
+		--->run_init_process("/bin/sh")		当运行init没成功时，可用此Shell来代替，以便恢复机器
+		
+/init			cpio-initrd（或initramfs）中的初始化脚本，挂载真正的根文件系统，启动用户空间的init进程
+	--->export PATH=/sbin:/bin:/usr/sbin:/usr/bin		设置cpio-initrd的环境变量$PATH
+	--->挂载procfs、sysfs
+	--->解析命令行参数
+	--->udevd --daemon --resolve-names=never		启动udev
+	--->/initqueue/*.sh		执行/initqueue下的脚本完成对应初始化工作（现在该目录下为空）
+	--->/initqueue-settled/*.sh		执行/initqueue-settled下的脚本（现在该目录下为空）
+	--->/mount/*.sh		挂载真正的根文件系统
+		--->/mount/99mount-root.sh		根据/etc/fstab中的选项挂载根文件系统
+			--->/lib/dracut-lib.sh		一系列通用函数
+			--->把根文件系统挂载到$NEWROOT下
+	--->寻找真正的根文件系统中的init程序并存放在$INIT中	/sbin/init, /etc/init, /bin/init, 或/bin/sh
+	--->从/proc/cmdline中获取启动init的参数并存放在$initargs中
+	--->switch_root "$NEWROOT" "$INIT" $initargs		切换到根分区，并启动其中的init进程
