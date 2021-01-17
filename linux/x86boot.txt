@@ -1,0 +1,10 @@
+arch/x86/boot/header.S: the first instruction that runs in kernel image in real mode is at label "_start", then call "start_of_setup", then call "main".
+arch/x86/boot/main.c: "main" function is called by "start_of_setup", after "main" doing lots of operation, at last, call "go_to_protected_mode", 
+arch/x86/boot/pm.c: "go_to_protected_mode" is defined here, it will call "protected_mode_jump".
+arch/x86/boot/pmjump.S: "protected_mode_jump" is in this file. After executing this function, the processor is in protected mode.
+arch/x86/boot/compressed/head_64.S: the entry point is "startup_32", call "decompress_kernel"
+arch/x86/boot/compressed/misc.c: executing "decompress_kernel".
+arch/x86/boot/compressed/head_64.S: jump to the decompressed kernel entry point "startup_64"
+arch/x86/kernel/head_64.S: start to execute at label "startup_64", then call "x86_64_start_kernel".
+arch/x86/kernel/head64.c: executing "x86_64_start_kernel", it call "x86_64_start_reservations", "x86_64_start_reservations" call "start_kernel".
+init/main.c: start executing "start_kernel".
