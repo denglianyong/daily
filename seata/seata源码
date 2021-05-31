@@ -1,0 +1,95 @@
+入口 
+seata-spring-boot-starter
+spring.factories里 加载
+org.springframework.boot.autoconfigure.EnableAutoConfiguration=\
+io.seata.spring.boot.autoconfigure.SeataDataSourceAutoConfiguration,\
+io.seata.spring.boot.autoconfigure.SeataAutoConfiguration,\
+io.seata.spring.boot.autoconfigure.HttpAutoConfiguration
+
+
+SeataAutoConfiguration里生成GlobalTransactionScanner 扫描应用程序中的注解进行AOP增强，
+afterPropertiesSet 初始化TM  RM 客户端
+wrapIfNecessary 的buildAdvisors增强代码，GlobalTransactionalInterceptor 为拦截器
+
+全局事务处理过程
+GlobalTransactionalInterceptor.invoke中 handleGlobalTransaction 处理全局事务
+	TransactionalTemplate.execute
+	 // 发送请求给TC开启新事务xid，  RPC,REST接口调用时传过去
+    beginTransaction(txInfo, tx);
+	//执行业务逻辑    以AT为例
+    rs = business.execute();
+	//异常则回滚	
+	completeTransactionAfterThrowing(txInfo, tx, ex);
+	//触发全局提交事务
+	commitTransaction(tx);
+	
+	
+AT分支事务  第一阶段
+DataSourceProxy 对数据源进行增强
+getConnection() 返回new ConnectionProxy
+PreparedStatementProxy 对statement进行增强 
+PreparedStatementProxy.execute
+	ExecuteTemplate.execute
+	BaseTransactionalExecutor.execute  
+	AbstractDMLBaseExecutor.doExecute
+		executeAutoCommitTrue
+			beforeImage();
+			statementCallback.execute(statementProxy.getTargetStatement(), args);// 执行业务SQL
+			afterImage(beforeImage);
+			// 准备undo日志
+			prepareUndoLog(beforeImage, afterImage);
+	connectionProxy.commit();// 提交本地事务
+		doCommit()
+		processGlobalTransactionCommit
+			 // 注册分支事务
+            register();
+			  // flush  undo日志
+            UndoLogManagerFactory.getUndoLogManager
+		    // 向TC报告分支事务执行情况
+			report(true);
+			
+AT分支事务 第二阶段 回滚场景：completeTransactionAfterThrowing 触发
+TransactionalTemplate.completeTransactionAfterThrowing
+	rollbackTransaction
+	DefaultGlobalTransaction.rollback
+	DefaultTransactionManager.rollback
+	syncCall 发送回滚请求给TC 
+	TmNettyRemotingClient.getInstance().sendSyncRequest(request);//netty发送命令，DefaultCoordinator处理该命令
+
+TC Server启动过程  代码见server目录
+ class ServerRunner implements CommandLineRunner该类启动netty  server 	
+ Server.start(args);
+ new NettyRemotingServer
+ nettyRemotingServer.setListenPort 开始监听
+ new DefaultCoordinator// TC  事务协调者
+   //   启动5大定时器， 处理异常事务
+ DefaultCoordinator.init();
+//  注册命令处理器，RM ,TM  回滚，提交命令在这里处理
+ nettyRemotingServer.init();
+	registerProcessor();// 我们关心的重点
+	 ServerOnRequestProcessor.process  // 命令处理器
+		onRequestMessage
+		transactionMessageHandler.onRequest
+		GlobalRollbackRequest.handle
+		AbstractTCInboundHandler.handle
+		doGlobalRollback
+		DefaultCore.rollback  
+		doGlobalRollback
+		 // 遍历所有的分支 发送 rollback
+            Boolean result = SessionHelper.forEach(globalSession.getReverseSortedBranches(), branchSession -> branchRollback
+			DefaultCore.branchRollback发送rollback  BranchRollbackRequest 给每个RM 
+
+RM收到RmBranchRollbackProcessor（RmNettyRemotingClient.init 注册） 来处理该命令			
+		RmBranchRollbackProcessor.process	
+		handleBranchRollback
+		handler.onRequest
+		transactionRequest.handle
+		getResourceManager().branchRollback
+		DataSourceManager.branchRollback
+		UndoLogManagerFactory.getUndoLogManager // 执行第一阶段的undo日志回滚事务
+
+		
+附录：		
+commit 过程类型，执行删除undo日志；
+异常情况，TC中启动5个定时器任务处理，代码在DefaultCoordinator类中
+TCC原理后续分享
