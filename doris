@@ -1,1 +1,161 @@
 
+缩进代表调用层级关系
+
+fe代码入口：
+PaloFe.java--main--start
+	qeService.start // 处理mysql连接，SQL 请求
+	feServer.start  // 与BE 通信， 管理元数据等功能
+
+	
+MysqlServer.start
+	Listener.run
+		serverChannel.accept()
+		scheduler.submit(context)
+		executor.submit(new LoopHandler(context));
+		MysqlProto.negotiate(context)//  认证
+		registerConnection
+		ConnectProcessor.loop
+			processOnce()
+				// 先读取连接到缓冲区
+				packetBuf = channel.fetchOnePacket();
+				dispatch();//  分发处理各种不同SQL请求
+					switch (command) 
+					 handleQuery();
+					 
+追踪查询SQL 执行过程    //  parse -- Analyze-- plan-- schedule
+List<StatementBase> stmts = analyze(originStmt);//   sql_scanner.flex 做词法分析  sql_parse.cup做语法分析    ==>StatementBase 解析 SQL 成 AST
+executor.execute();// 执行
+	 analyze(sessionVariable.toThrift());
+           analyzeAndGenerateQueryPlan(tQueryOptions);   //  优化重写，生成查询计划
+				 StmtRewriter.rewrite	//  重写
+						rewriteXXXStatement
+				 parsedStmt.analyze(analyzer);	//  不同类型对应不同的语句	
+				 planner.plan		 // 生成逻辑执行图   scan-join-project
+						  createPlanFragments
+								singleNodePlanner.createSingleNodePlan(); //单节点执行计划
+											createQueryPlan
+												pushDownPredicates  //  下推谓词
+												createSelectPlan    // 生成查询计划
+													createTableRefNode // 创建node
+													turnOffPreAgg   
+													createJoinNode
+													createAggregationPlan
+												
+								singleNodePlanner.selectMaterializedView  // 选择物化视图
+								distributedPlanner.createPlanFragments(singleNodePlan);// 分布式
+										createXXXFragment   
+								fragment.finalize
+	 handleQueryStmt();
+		 coord.exec();//  执行plan
+				 prepare();
+				 computeScanRangeAssignment();//计算扫描分析，节点
+						computeScanRangeAssignmentByColocate
+						computeScanRangeAssignmentByScheduler
+				 computeFragmentExecParams(); //  准备参数，  dest节点
+						computeFragmentHosts
+				 sendFragment();// 给be发送请求，执行fragment
+						execState.execRemoteFragmentAsync()
+		 coord.getNext();//  while获取结果
+				 receiver.getNext(status);
+					BackendServiceProxy.getInstance().fetchDataAsync
+					 deserializer.deserialize // 反序列化
+	
+finalizeCommand();//  返回结果给client
+			  
+
+
+be代码入口
+be\src\service\doris_main.cpp
+main
+   parse_conf_store_paths
+  daemon.init(argc, argv, paths);
+  //  启动后台线程
+    daemon.start();
+	// 存储引擎  ；    加载tablet
+    auto st = doris::StorageEngine::open(options, &engine);
+	doris::ExecEnv::init(exec_env, paths); //初始化执行环境
+	engine->start_bg_threads()
+	
+	  doris::BackendService::create_service // 接受FE 发来的RPC请求
+	  be_server->start();
+	  
+	  
+be\src\service\backend_service.cpp	  
+fe请求的执行过程  衔接点见上面的 create_service	  
+create_service
+	new BackendService(exec_env)
+	new BackendServiceProcessor(handler)
+	
+请求最终处理代码be\src\service\backend_service.cpp	  
+exec_plan_fragment	
+start_plan_fragment_execution
+_exec_env->fragment_mgr()->exec_plan_fragment
+exec_plan_fragment
+	prepare //  准备工作
+	    _runtime_state->set_db_name  //设置数据名字	
+		ExecNode::create_tree  // 创建执行树
+		_plan->collect_nodes    //  确定 数据所在节点
+		_plan->collect_scan_nodes  
+		scan_node->set_scan_ranges(scan_ranges);  //  确定扫描区间
+		DataSink::create_data_sink  // 结果写入地点
+	_exec_actual  //  执行plan
+		exec_state->execute()---_executor.open()---open_internal()
+														_plan->open
+														get_next_internal
+//  调用next， 全流程贯通		
+get_next_internal
+_plan->get_next   // OlapScanNode::get_next为例
+
+
+OlapScanNode::get_next
+   start_scan(state);
+        eval_const_conjuncts();
+		normalize_conjuncts()
+		build_olap_filters() // 
+		remove_pushed_conjuncts(state)
+		build_scan_key()  // 确定扫描索引
+		start_scan_thread(state) // 真正从存储引擎读取数据
+		    _scan_keys.get_key_range
+			OlapScanner.prepare
+				StorageEngine::instance()->tablet_manager()->get_tablet
+				 _tablet->capture_rs_readers
+			OlapScanNode::transfer_thread   //读取数据
+				scanner_thread
+				   OlapScanner::get_batch
+							_reader->next_row_with_aggregation  // 实现在 olap/reader.cpp _reader 在prepare中初始化,init中设置next_row_with_aggregation=_direct_next_row 
+									CollectIterator::next
+									    Level1Iterator::next  --->Level0Iterator::next --- (this->*_refresh_current_row)();
+										_refresh_current_row==_refresh_current_row_v2  // Level0Iterator 构造函数中设置
+										_rs_reader->next_block  // (src\olap\rowset)   alpha_rowset_reader.cpp   AlphaRowsetReader::next_block ；本文件 init 函数中 设置为  _merge_block;   _union_block  
+											_pull_next_block 
+													_pull_first_block
+														merge_ctx->column_data->prepare_block_read  //读取列数据
+															_seek_to_row
+																_get_block
+																	_get_block_from_reader
+																	   SegmentReader->get_block   // 层级关系 tablet-- storge--rowset -- segment --- block-- cloumn-- stream 
+																			_seek_to_block_directly
+																			_load_to_vectorized_row_batch
+																				ColumnReader->next_vector
+																					BitFieldReader->next
+																						_read_byte
+																							 RunLengthByteReader::next
+																								ReadOnlyFileStream::read
+																									_assure_data
+																										FileCursor.read
+																											FileHandler::pread
+																												::pread  (GLIBC读取文件API)
+																									_uncompressed->get(byte);
+																			_seek_to_block
+													merge_ctx->column_data->get_first_row_block
+													merge_ctx->column_data->get_next_block
+										
+										
+										
+											// 从block 读取行 ； 移动游标，_row_cursor 指向读取点
+										_row_block->get_row(pos, &_row_cursor);
+										cursor->attach
+										
+										
+								
+		
