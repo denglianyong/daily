@@ -184,7 +184,12 @@ OlapScanNode::get_next
 																						
 																				ColumnData::_get_block	
 													merge_ctx->column_data->get_next_block   
-										
+																	 pred->evaluate
+																		BITMAP_COMPARE_EqualPredicate
+																		BitmapIndexIterator::read_union_bitmap
+																			read_bitmap
+																			_bitmap_column_iter.seek_to_ordinal(ordinal) // 设置行号
+																			 Roaring::read//  读取用户数据
 										
 										
 											// 从block 读取行 ； 移动游标，_row_cursor 指向读取点
@@ -208,10 +213,5 @@ OlapScanNode::get_next
 											 memory_copy //  读入内存数据结构
 
 									
-second->eval
-BITMAP_COMPARE_EqualPredicate
-	BitmapIndexIterator::read_union_bitmap
-		read_bitmap
-		_bitmap_column_iter.seek_to_ordinal(ordinal) // 设置行号
-		 Roaring::read//  读取用户数据
+
 		
