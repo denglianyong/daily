@@ -114,7 +114,7 @@ exec_plan_fragment
 get_next_internal
 _plan->get_next   // OlapScanNode::get_next为例
 							
-//Beta版   RowSetReader
+//Beta版数据读取   BetaRowSetReader
 OlapScanNode::get_next
    start_scan(state);
         eval_const_conjuncts();
@@ -139,10 +139,13 @@ OlapScanNode::get_next
 											  Segment::open
 													segment->_open
 														_parse_footer()//  解析头文件   // https://my.oschina.net/u/4574386/blog/4332071
-														_create_column_readers
+															block_mgr->open_block  //  FileBlockManager::open_block
+															FileReadableBlock::read
+															_footer.ParseFromString  // 解析footer
+														_create_column_readers  // 创建 ColumnReader
 										 seg_ptr->new_iterator // 初始化 SegmentIterator
 										 SegmentIterator->init
-												block_mgr->open_block
+												block_mgr->open_block  // 与文件系统交互
 												_init_return_column_iterators
 												_init_bitmap_index_iterators
 												_get_row_ranges_by_keys
@@ -167,7 +170,7 @@ OlapScanNode::get_next
 																FileColumnIterator::next_batch
 																		_load_next_page
 																			_read_data_page
-																				reader->read_pag
+																				ColumnReader->read_page
 																					PageIO::read_and_decompress_page
 																						opts.rblock->read
 																							FileReadableBlock::read
@@ -205,7 +208,12 @@ OlapScanNode::get_next
 							_capture_rs_readers
 								rs_reader->init //  BetaRowsetReader init
 										_rowset->load()// 加载segment文件
-										 seg_ptr->new_iterator // 初始化SegmentIterator
+										SegmentIterator->new_iterator // 初始化SegmentIterator
+											Segment::_load_index  // 加载索引
+												PageIO::read_and_decompress_page
+													footer->ParseFromString  
+													rblock->read
+													codec->decompress
 								_collect_iter->build_heap(); //  创建 LevelInterator 
 						    _next_row_func = &Reader::_direct_next_row; _unique_key_next_row;_agg_key_next_row;  // 
 				    OlapScanner::get_batch
@@ -270,19 +278,35 @@ OlapScanNode::get_next
 											// 从block 读取行 ； 移动游标，_row_cursor 指向读取点
 										_row_block->get_row(pos, &_row_cursor);
 										cursor->attach
+============================================================
+数据写入流程
+LoadChannel.add_batch
+	DeltaWriter.write
+		MemTable->insert  //写入内存
+			_skip_list->Insert
+			copy_row_in_memtable
+			_flush_memtable_async // 写入磁盘
+				_flush_memtable
+					memtable->flush()
+						_rowset_writer->flush_single_memtable
+						_rowset_writer->add_row
+						_rowset_writer->flush()
+							BetaRowsetWriter::_flush_segment_writer
+								SegmentWriter::finalize
+									_write_data()
+										column_writer->write_data
+											PageIO::compress_and_write_page
+											
+									_write_ordinal_index
+									_write_zone_map
+									_write_bitmap_index
+									_write_bloom_filter_index
+									_write_short_key_index
+									_write_footer
+										_write_raw_data
+											FileWritableBlock::appendv
+											
+	
+
 										
-										
-								//  加载segment文件
-								--load()--
-								do_load--
-								segment_group
-								load
-									MemIndex.init
-									construct_data_file_path
-									load_pb 
-										FileHandler.open--FileHandler.unserialize
-										load_segment  // https://my.oschina.net/u/4574386/blog/4332071
-											 meta.file_header.unserialize
-											 file_handler.pread  // 读取索引内容
-											 olap_adler32  //checksum
-											 memory_copy //  读入内存数据结构													
+												
