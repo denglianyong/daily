@@ -113,8 +113,8 @@ exec_plan_fragment
 //  调用next， 全流程贯通		
 get_next_internal
 _plan->get_next   // OlapScanNode::get_next为例
-
-
+							
+//Beta版   RowSetReader
 OlapScanNode::get_next
    start_scan(state);
         eval_const_conjuncts();
@@ -133,12 +133,88 @@ OlapScanNode::get_next
 						_reader->init
 							_init_params  //  设置查询key，返回字段
 							_capture_rs_readers
-							 _next_row_func = &Reader::_direct_next_row; _unique_key_next_row;_agg_key_next_row;
+								BetaRowsetReader->init //  BetaRowsetReader init
+										_rowset->load()// 加载segment文件
+											  segment_file_path
+											  Segment::open
+													segment->_open
+														_parse_footer()//  解析头文件   // https://my.oschina.net/u/4574386/blog/4332071
+														_create_column_readers
+										 seg_ptr->new_iterator // 初始化 SegmentIterator
+										 SegmentIterator->init
+												block_mgr->open_block
+												_init_return_column_iterators
+												_init_bitmap_index_iterators
+												_get_row_ranges_by_keys
+												_get_row_ranges_by_column_conditions
+												_init_lazy_materialization
+												_range_iter=BitmapRangeIterator	// 后面SegmentIterator::next_batch 用到											
+								_collect_iter->build_heap(); //  创建 LevelInterator 
+						    _next_row_func = &Reader::_direct_next_row; _unique_key_next_row;_agg_key_next_row;  // 
+				    OlapScanner::get_batch
+						_reader->next_row_with_aggregation  // 实现在 olap/reader.cpp _reader init中设置next_row_with_aggregation=_direct_next_row 
+									CollectIterator::next
+									    Level1Iterator::next  --->Level0Iterator::next --- (this->*_refresh_current_row)();
+										_refresh_current_row==_refresh_current_row_v2  // Level0Iterator 构造函数中设置 
+										BetaRowSetReader->next_block 
+											    SegmentIterator::next_batch
+													_init()
+													BitmapRangeIterator->next_range
+															_read_next_batch
+																roaring_read_uint32_iterator// 没找到衔接处 ColumnIterator
+																	 FileColumnIterator::next_batch
+																		_load_next_page
+																			_read_data_page
+																				reader->read_pag
+																					PageIO::read_and_decompress_page
+																						opts.rblock->read
+																							FileReadableBlock::read
+																							FileReadableBlock::readv
+																							RandomAccessFile.readv_at
+																							do_readv_at
+																							preadv
+																		_page->data_decoder->next_batch
+																		PlainPageDecoder.decode
+																	 
+													 _seek_columns
+													 _read_columns
+													 column_predicate->evaluate
+																BITMAP_COMPARE_EqualPredicate
+																BitmapIndexIterator::read_union_bitmap
+																	read_bitmap
+																	_bitmap_column_iter.seek_to_ordinal(ordinal) // 设置行号
+																	 Roaring::read//  读取用户数据
+													
+alaha 版本													
+OlapScanNode::get_next
+   start_scan(state);
+        eval_const_conjuncts();
+		normalize_conjuncts()
+		build_olap_filters() // 
+		remove_pushed_conjuncts(state)
+		build_scan_key()  // 确定扫描索引
+		start_scan_thread(state) // 真正从存储引擎读取数据
+		    _scan_keys.get_key_range
+			OlapScanner.prepare
+				StorageEngine::instance()->tablet_manager()->get_tablet
+				 _tablet->capture_rs_readers
+			OlapScanNode::transfer_thread   //读取数据
+				scanner_thread
+					scanner->open()
+						_reader->init
+							_init_params  //  设置查询key，返回字段
+							_capture_rs_readers
+								rs_reader->init //  BetaRowsetReader init
+										_rowset->load()// 加载segment文件
+										 seg_ptr->new_iterator // 初始化SegmentIterator
+								_collect_iter->build_heap(); //  创建 LevelInterator 
+						    _next_row_func = &Reader::_direct_next_row; _unique_key_next_row;_agg_key_next_row;  // 
 				    OlapScanner::get_batch
 							_reader->next_row_with_aggregation  // 实现在 olap/reader.cpp _reader init中设置next_row_with_aggregation=_direct_next_row 
 									CollectIterator::next
 									    Level1Iterator::next  --->Level0Iterator::next --- (this->*_refresh_current_row)();
 										_refresh_current_row==_refresh_current_row_v2  // Level0Iterator 构造函数中设置
+										// 可以选择不同版本Rowset  后面分析BetaRowSetReader
 										_rs_reader->next_block  // (src\olap\rowset)   alpha_rowset_reader.cpp   AlphaRowsetReader::next_block ；本文件 init 函数中 设置为  _merge_block;   _union_block  
 											_pull_next_block 
 													_pull_first_block
@@ -197,7 +273,7 @@ OlapScanNode::get_next
 										cursor->attach
 										
 										
-								reset_sizeinfo  
+								//  加载segment文件
 								--load()--
 								do_load--
 								segment_group
@@ -210,8 +286,4 @@ OlapScanNode::get_next
 											 meta.file_header.unserialize
 											 file_handler.pread  // 读取索引内容
 											 olap_adler32  //checksum
-											 memory_copy //  读入内存数据结构
-
-									
-
-		
+											 memory_copy //  读入内存数据结构													
