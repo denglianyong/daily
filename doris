@@ -1,4 +1,3 @@
-
 缩进代表调用层级关系
 
 fe代码入口：
@@ -73,6 +72,15 @@ main
     daemon.start();
 	// 存储引擎  ；    加载tablet
     auto st = doris::StorageEngine::open(options, &engine);
+				new StorageEngine
+					new TabletManager
+					new TxnManager
+				engine->_open()
+					_init_store_map
+						 new DataDir.init
+							_init_cluster_id
+							_init_file_system
+							_init_meta
 	doris::ExecEnv::init(exec_env, paths); //初始化执行环境
 	engine->start_bg_threads()
 	
@@ -121,8 +129,13 @@ OlapScanNode::get_next
 				 _tablet->capture_rs_readers
 			OlapScanNode::transfer_thread   //读取数据
 				scanner_thread
-				   OlapScanner::get_batch
-							_reader->next_row_with_aggregation  // 实现在 olap/reader.cpp _reader 在prepare中初始化,init中设置next_row_with_aggregation=_direct_next_row 
+					scanner->open()
+						_reader->init
+							_init_params  //  设置查询key，返回字段
+							_capture_rs_readers
+							 _next_row_func = &Reader::_direct_next_row; _unique_key_next_row;_agg_key_next_row;
+				    OlapScanner::get_batch
+							_reader->next_row_with_aggregation  // 实现在 olap/reader.cpp _reader init中设置next_row_with_aggregation=_direct_next_row 
 									CollectIterator::next
 									    Level1Iterator::next  --->Level0Iterator::next --- (this->*_refresh_current_row)();
 										_refresh_current_row==_refresh_current_row_v2  // Level0Iterator 构造函数中设置
@@ -146,9 +159,31 @@ OlapScanNode::get_next
 																											FileHandler::pread
 																												::pread  (GLIBC读取文件API)
 																									_uncompressed->get(byte);
-																			_seek_to_block
+																		_seek_to_block--SegmentReader->init   //  存储引擎  原理见：https://my.oschina.net/u/4574386/blog/4332071
+																							_load_segment_file  // 加载segment文件
+																							_set_segment_info
+																							 _pick_columns() // 读取列
+																							 _load_index // 加载索引
+																								ReadOnlyFileStream::read_all // 读取索引文件  _indices[unique_column_id] = index_message;供column_data 读取行使用
+																								StreamIndexReader::init    //   初始化 索引内存数据结构
+																								BloomFilterIndexReader->init
+																						
+													//  以下都是内存操作
 													merge_ctx->column_data->get_first_row_block
-													merge_ctx->column_data->get_next_block
+																				segment_group()->find_first_row_block
+																				ColumnData::_seek_to_block
+																					segment_group()->construct_data_file_path
+																					_segment_reader->init //读取列，index
+																					_segment_reader->seek_to_block
+																						_read_all_data_streams
+																						_create_reader
+																						_pick_row_groups // 读取行数据
+																							_init_include_blocks
+																							second->eval  // 谓词判断是否符合要求，读取行数据  代码见：comparison_predicate.cpp
+																							
+																						
+																				ColumnData::_get_block	
+													merge_ctx->column_data->get_next_block   
 										
 										
 										
@@ -157,5 +192,26 @@ OlapScanNode::get_next
 										cursor->attach
 										
 										
-								
+								reset_sizeinfo  
+								--load()--
+								do_load--
+								segment_group
+								load
+									MemIndex.init
+									construct_data_file_path
+									load_pb 
+										FileHandler.open--FileHandler.unserialize
+										load_segment  // https://my.oschina.net/u/4574386/blog/4332071
+											 meta.file_header.unserialize
+											 file_handler.pread  // 读取索引内容
+											 olap_adler32  //checksum
+											 memory_copy //  读入内存数据结构
+
+									
+second->eval
+BITMAP_COMPARE_EqualPredicate
+	BitmapIndexIterator::read_union_bitmap
+		read_bitmap
+		_bitmap_column_iter.seek_to_ordinal(ordinal) // 设置行号
+		 Roaring::read//  读取用户数据
 		
