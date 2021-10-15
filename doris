@@ -161,8 +161,10 @@ OlapScanNode::get_next
 													_init()
 													BitmapRangeIterator->next_range
 															_read_next_batch
-																roaring_read_uint32_iterator// 没找到衔接处 ColumnIterator
-																	 FileColumnIterator::next_batch
+																roaring_read_uint32_iterator
+													 _seek_columns
+													 _read_columns
+																FileColumnIterator::next_batch
 																		_load_next_page
 																			_read_data_page
 																				reader->read_pag
@@ -172,12 +174,9 @@ OlapScanNode::get_next
 																							FileReadableBlock::readv
 																							RandomAccessFile.readv_at
 																							do_readv_at
-																							preadv
+																							preadv  // glibc api
 																		_page->data_decoder->next_batch
 																		PlainPageDecoder.decode
-																	 
-													 _seek_columns
-													 _read_columns
 													 column_predicate->evaluate
 																BITMAP_COMPARE_EqualPredicate
 																BitmapIndexIterator::read_union_bitmap
