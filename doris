@@ -2,6 +2,14 @@
 
 fe代码入口：
 PaloFe.java--main--start
+	Catalog.getCurrentCatalog().initialize  // 重要组件全部亮相
+		 pluginMgr.init();// 初始化插件
+		 getClusterIdAndRole();//  获取集群id和role
+		 loadImage() //  加载镜像   job   db等
+			loadXXX  //一堆
+		 createLabelCleaner();  //  导入导出清理线程
+		 createTxnCleaner(); // 事务清理线程
+		 createStateListener();// 状态清理线程
 	qeService.start // 处理mysql连接，SQL 请求
 	feServer.start  // 与BE 通信， 管理元数据等功能
 
