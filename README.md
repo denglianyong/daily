@@ -1,4 +1,4 @@
-Èç¹ûÎŞ·¨²é¿´Í¼Æ¬£¬ÇëÅäÖÃhosts(c:\windows\system32\drivers\etc)
+å¦‚æœæ— æ³•æŸ¥çœ‹å›¾ç‰‡ï¼Œè¯·é…ç½®hosts(c:\windows\system32\drivers\etc)
 # GitHub Start 
 192.30.253.112    Build software better, together 
 192.30.253.119    gist.github.com
@@ -20,9 +20,13 @@
  # GitHub End
 
 
-×îĞÂIP²éÑ¯·½·¨
+æœ€æ–°IPæŸ¥è¯¢æ–¹æ³•
 https://site.ip138.com/raw.Githubusercontent.com/
 
-ÊäÈëraw.githubusercontent.com
+è¾“å…¥raw.githubusercontent.com
 
-²éÑ¯IPµØÖ·
+æŸ¥è¯¢IPåœ°å€
+
+
+å¯ç›´æ¥ä½¿ç”¨crud ä»£ç ç”Ÿæˆå™¨
+https://gitee.com/Nbility/code-generator/tree/master
