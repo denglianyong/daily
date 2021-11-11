@@ -1,3 +1,5 @@
+可直接使用crud 代码生成器
+https://gitee.com/Nbility/code-generator/tree/master
 
 spring acl
 https://blog.csdn.net/u012702547/article/details/108644487
