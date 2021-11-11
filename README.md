@@ -28,5 +28,4 @@ https://site.ip138.com/raw.Githubusercontent.com/
 查询IP地址
 
 
-可直接使用crud 代码生成器
-https://gitee.com/Nbility/code-generator/tree/master
+
