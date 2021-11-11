@@ -4,3 +4,6 @@ https://gitee.com/Nbility/code-generator/tree/master
 spring acl
 https://blog.csdn.net/u012702547/article/details/108644487
 https://www.cnblogs.com/fenglan/p/5913540.html
+
+方法级别权限
+https://www.cnblogs.com/xifengxiaoma/p/11106220.html
