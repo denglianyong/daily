@@ -19,3 +19,6 @@ https://blog.csdn.net/wangmiaoyan/article/details/103802543
 
 helm redis
 https://blog.csdn.net/qq_35887546/article/details/106051393
+
+
+https://gitee.com/owen_tao/mysql-kubernetes/
