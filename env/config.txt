@@ -22,3 +22,4 @@ https://blog.csdn.net/qq_35887546/article/details/106051393
 
 
 https://gitee.com/owen_tao/mysql-kubernetes/
+https://www.cnblogs.com/pluto-charon/p/14411780.html
