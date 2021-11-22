@@ -20,6 +20,9 @@ https://blog.csdn.net/wangmiaoyan/article/details/103802543
 helm redis
 https://blog.csdn.net/qq_35887546/article/details/106051393
 
-
+mysql
 https://gitee.com/owen_tao/mysql-kubernetes/
 https://www.cnblogs.com/pluto-charon/p/14411780.html
+
+pv nfs
+https://www.cnblogs.com/benjamin77/p/9944268.html
