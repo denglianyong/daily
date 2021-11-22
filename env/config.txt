@@ -7,3 +7,11 @@ https://www.cnblogs.com/fenglan/p/5913540.html
 
 方法级别权限
 https://www.cnblogs.com/xifengxiaoma/p/11106220.html
+
+
+
+K8S helm 搭建kafka
+https://blog.csdn.net/boling_cavalry/article/details/105466163
+
+K8S 搭建kafka
+https://blog.csdn.net/wangmiaoyan/article/details/103802543
