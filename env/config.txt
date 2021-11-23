@@ -19,6 +19,8 @@ https://blog.csdn.net/wangmiaoyan/article/details/103802543
 
 helm redis
 https://blog.csdn.net/qq_35887546/article/details/106051393
+集群搭建 ，比较简单
+https://www.cnblogs.com/winstom/p/11881882.html
 
 mysql
 https://gitee.com/owen_tao/mysql-kubernetes/
