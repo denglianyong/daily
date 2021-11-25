@@ -19,8 +19,8 @@ https://blog.csdn.net/wangmiaoyan/article/details/103802543
 
 helm redis
 https://blog.csdn.net/qq_35887546/article/details/106051393
-集群搭建 ，比较简单
-https://www.cnblogs.com/winstom/p/11881882.html
+
+https://gitee.com/ilanni/k8s-redis/tree/master/redis/k8s-redis-cluster
 
 mysql
 https://gitee.com/owen_tao/mysql-kubernetes/
@@ -28,3 +28,15 @@ https://www.cnblogs.com/pluto-charon/p/14411780.html
 
 pv nfs
 https://www.cnblogs.com/benjamin77/p/9944268.html
+
+kubectl apply -f https://raw.githubusercontent.com/coreos/flannel/master/Documentation/kube-flannel.yml
+
+sudo tee /etc/docker/daemon.json <<-'EOF'
+
+{
+ 
+  "registry-mirrors": ["https://na63tmr6.mirror.aliyuncs.com"]
+
+}
+
+EOF
