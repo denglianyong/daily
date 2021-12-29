@@ -1,0 +1,41 @@
+入口：
+应用程序自定义DataSourceConfig中注入SqlSessionFactoryBean
+SqlSessionFactoryBean.getObject() //完成mybatis初始化
+	afterPropertiesSet
+		buildSqlSessionFactory
+			xmlConfigBuilder.parse();// 解析mybatis配置文件
+			xmlMapperBuilder.parse();// 解析mapper的xml文件
+
+
+注解 @MapperScan  扫描指定包下的mapper接口
+@Import(MapperScannerRegistrar.class) 向spring容器注册
+processBeanDefinitions中    
+definition.setBeanClass(this.mapperFactoryBean.getClass());// 将mapper接口实现替换成mapperFactoryBean
+definition.setAutowireMode(AbstractBeanDefinition.AUTOWIRE_BY_TYPE);// 自动注册依赖类SqlSessionFactory
+
+
+MapperFactoryBean的基类DaoSupport定义afterPropertiesSet
+			 configuration.addMapper(this.mapperInterface);
+			 
+			   
+MapperFactoryBean  spring实际注入的是 getObject返回的代理
+public T getObject() throws Exception {
+	return getSqlSession().getMapper(this.mapperInterface);
+		mapperRegistry.getMapper
+		mapperProxyFactory.newInstance(sqlSession);
+		最终返回的MapperProxy
+}
+应用调用mapper接口时回调
+MapperProxy.invoke
+MapperMethod.execute
+MapperMethod.executeForMany
+sqlSession.<E>selectList
+executor.query
+query
+queryFromDatabase
+doQuery
+StatementHandler.<E>query
+CallableStatementHandler.query
+	CallableStatement.execute // 执行SQL 
+	resultSetHandler.<E>handleResultSets(cs); // 映射字段
+	
