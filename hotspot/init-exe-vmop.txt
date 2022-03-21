@@ -1,0 +1,163 @@
+入口：
+hotspot7\src\os\linux\launcher\java.c
+main
+	LoadJavaVM // 设置 ifn->CreateJavaVM = JNI_CreateJavaVM;
+	InitializeJVM // 初始化jvm
+ 	LoadClass//classLoader加载main class
+ 	(*env)->CallStaticVoidMethod //CallStaticVoidMethod   宏定义 DEFINE_CALLSTATICMETHOD
+	jni_CallStaticVoidMethod
+	jni_invoke_static
+	(*vm)->DestroyJavaVM
+
+
+
+
+InitializeJVM 
+	ifn->CreateJavaVM = JNI_CreateJavaVM;
+	Threads::create_vm
+		vm_init_globals
+		init_globals
+		new JavaThread
+		VMThread::create();// 执行vm_op  gc
+ 		AttachListener::init();
+		SystemDictionary::resolve_or_null// 解析基础类
+ 		//   类加载器
+ 		 SystemDictionary::compute_java_system_loader(THREAD);
+		create_vm_init_libraries();//加载agent库
+ 		 CompileBroker::compilation_init();
+		// 加载管理类
+  		Management::initialize(THREAD);
+		 WatcherThread::start();
+
+主要模块初始化
+init_globals
+  management_init();// 创建统计变量
+  vtune_init();
+  // 定义vm 指令
+  bytecodes_init();
+  classLoader_init();
+  codeCache_init();
+  VM_Version_init();
+  // 生成 stub代码片段  C/C++到java的桥梁代码    -- 创建堆栈，处理返回值等
+  stubRoutines_init1();
+  // 设置GC策略    堆，字典，符号表  
+  jint status = universe_init();  // dependent on codeCache_init and stubRoutines_init
+  // 模板解释器 生成vm codelet 片段--- java 二进制
+  interpreter_init();  // before any methods loaded
+  invocationCounter_init();  // before any methods loaded
+  marksweep_init();//标记清理  GC相关
+  accessFlags_init();
+  templateTable_init();// vm指令对应的生成函数  interpreter_init已初始化一次了
+  InterfaceSupport_init();
+  SharedRuntime::generate_stubs();//生成的函数C1或是直接调用会用到
+  //  符号表，系统字段初始化
+  universe2_init();  // dependent on codeCache_init and stubRoutines_init
+  referenceProcessor_init();
+  jni_handles_init();
+  vmStructs_init();
+  vtableStubs_init();// 虚拟表 
+  InlineCacheBuffer_init();// 二进制代码缓存
+  compilerOracle_init();
+  compilationPolicy_init();// 编译策略
+  VMRegImpl::set_regName();
+  universe_post_init()) 
+  javaClasses_init();  // must happen after vtable initialization
+  stubRoutines_init2(); // note: StubRoutines need 2-phase init
+
+//生成C调用java的stub
+stubRoutines_init1
+	StubRoutines::initialize1()
+		BufferBlob::create
+		CodeBuffer buffer
+		StubGenerator_generate
+			  _masm = new MacroAssembler(code);
+
+StubGenerator_generate
+	 StubGenerator g(code, all);// 2977行	
+		generate_forward_exception
+	 	generate_call_stub //一堆汇编指令 建立堆栈，压参数，跳转到entrypoint，处理返回值
+	 	//  汇编指令前的下划线 汇编器  #define __ _masm-> 
+	 	//E:\source\hotspot7\src\cpu\x86\vm\stubGenerator_x86_64.cpp
+			__ enter()
+			__ movptr(r15_thread, thread); //切换线程堆栈 
+			__ reinit_heapbase
+			__ call(c_rarg1);//  执行java 虚拟机指令  entry_point
+    			__ movptr(c_rarg0, result);// 将result地址的值拷贝到c_rarg0中
+			__ pop(rbp); // return  恢复caller帧栈指针
+		generate_catch_exception
+		generate_atomic_xchg
+
+//模版解释器讲vm指令转二进制
+interpreter_init
+// E:\source\hotspot7\src\share\vm\interpreter\templateInterpreter.cpp
+	 Interpreter::initialize()
+	 	 //  vm指令的对应的模板表  ；  生成函数
+  		TemplateTable::initialize();
+		new StubQueue
+		//E:\source\hotspot7\src\cpu\x86\vm\templateInterpreter_x86_64.cpp
+		InterpreterGenerator g(_code);
+	 	 //E:\source\hotspot7\src\share\vm\interpreter\templateInterpreter.cpp
+  		 generate_all(); 
+			 	//  生成各种方法的入口
+			 		generate_return_entry_for
+			 		generate_earlyret_entry_for
+			 		generate_deopt_entry_for
+   			  Interpreter::_entry_table[Interpreter::kind] = generate_method_entry(Interpreter::kind);
+					generate_normal_entry  // 汇编指令
+						generate_fixed_frame
+						 __ dispatch_next
+							 increment(r13）// PC 指针+1
+							dispatch_base  //jmp 到java二进制
+					  // Bytecodes  为vm 指令生成二进制 	// 触发模版生成二进制
+			 		set_entry_points_for_all_bytes();
+						 set_entry_points(code);
+						 set_short_entry_points(t, bep, cep, sep, aep, iep, lep, fep, dep, vep);
+						 set_vtos_entry_points
+			  			generate_and_dispatch(t);
+							 t->generate(_masm);
+								_gen(_arg);//用模版为虚拟机指令生成二进制  以lload为例子
+			  	set_safepoints_for_all_bytes();
+
+
+//InterpretrRuntime:_new (java 中 new语法,触发)
+	initialize_class
+		//  解析class文件，link_method触发模版解释器生成二进制	
+	 	SystemDictionary::resolve_or_fail
+			resolve_instance_class_or_null
+				load_instance_class
+				 	ClassLoader::load_classfile // 解析class文件
+						parser.parseClassFile
+							parse_constant_pool// 解析常量池 
+							verify_legal_class_modifiers// 验证
+							parse_methods//  解析方法
+							// 计算虚函数表大小
+						    	klassVtable::compute_vtable_size_and_num_mirandas 	
+							 //  创建  klassOop
+						   	 klassOop ik = oopFactory::new_instanceKlass
+		// 链接				   	 
+		instanceKlass::cast(klass)->initialize
+			initialize_impl
+				this_oop->link_class
+					link_class_impl
+						verify_code//验证
+						  this_oop->rewrite_class
+						  Rewriter::rewrite
+								rewrite_method
+									method->link_method
+						 				set_interpreter_entry(entry);// 设置 entrypoint
+						 				make_adapters  //Setup compiler entrypoint
+				this_oop->call_class_initializer // 调用构造函数
+
+
+
+
+
+
+虚拟机指令 生成器
+E:\source\hotspot7\src\cpu\x86\vm\templateInterpreter_x86_64.cpp
+
+汇编指令定义
+E:\source\hotspot7\src\cpu\x86\vm\assembler_x86.cpp
+call_helper 是C/C++调用java桥梁，设置堆栈，参数，处理返回值，退堆栈
+generate_normal_entry()  生成java的入口
+handler-- oop--oopDesc -- kclass
