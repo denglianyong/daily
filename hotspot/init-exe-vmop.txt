@@ -149,7 +149,15 @@ interpreter_init
 				this_oop->call_class_initializer // 调用构造函数
 
 
-
+执行main
+(*env)->CallStaticVoidMethod
+jni_CallStaticVoidMethod
+	jni_invoke_static
+	JavaCalls::call
+	os::os_exception_wrapper(call_helper)
+	// java方法编译成  vm指令
+    CompileBroker::compile_method
+    StubRoutines::call_stub()// 跳转到generate_call_stub  生成call_stub
 
 
 
