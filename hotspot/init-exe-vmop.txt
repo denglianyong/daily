@@ -40,7 +40,7 @@ init_globals
   VM_Version_init();
   // 生成 stub代码片段  C/C++到java的桥梁代码    -- 创建堆栈，处理返回值等
   stubRoutines_init1();
-  // 设置GC策略    堆，字典，符号表  
+  // 内存管理入口，设置GC策略    堆，字典，符号表  
   jint status = universe_init();  // dependent on codeCache_init and stubRoutines_init
   // 模板解释器 生成vm codelet 片段--- java 二进制
   interpreter_init();  // before any methods loaded
