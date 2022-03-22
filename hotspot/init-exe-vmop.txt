@@ -149,7 +149,7 @@ interpreter_init
 				this_oop->call_class_initializer // 调用构造函数
 
 
-执行main
+执行java  main方法
 (*env)->CallStaticVoidMethod
 jni_CallStaticVoidMethod
 	jni_invoke_static
