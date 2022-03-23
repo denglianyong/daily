@@ -90,9 +90,9 @@ StubGenerator_generate
 //模版解释器讲vm指令转二进制
 interpreter_init
 // E:\source\hotspot7\src\share\vm\interpreter\templateInterpreter.cpp
-	 Interpreter::initialize()
+	Interpreter::initialize()
 	 	 //  vm指令的对应的模板表  ；  生成函数
-  		TemplateTable::initialize();
+  	TemplateTable::initialize();
 		new StubQueue
 		//E:\source\hotspot7\src\cpu\x86\vm\templateInterpreter_x86_64.cpp
 		InterpreterGenerator g(_code);
@@ -111,13 +111,14 @@ interpreter_init
 					  // Bytecodes  为vm 指令生成二进制 	// 触发模版生成二进制
 			 		set_entry_points_for_all_bytes();
 						 set_entry_points(code);
+						 		Interpreter::_normal_table.set_entry(code, entry);
 						 set_short_entry_points(t, bep, cep, sep, aep, iep, lep, fep, dep, vep);
 						 set_vtos_entry_points
 			  			generate_and_dispatch(t);
 							 t->generate(_masm);
 								_gen(_arg);//用模版为虚拟机指令生成二进制  以lload为例子
 			  	set_safepoints_for_all_bytes();
-
+		_active_table = _normal_table;// set_entry_points 中设置_normal_table	    
 
 //InterpretrRuntime:_new (java 中 new语法,触发)
 	initialize_class
@@ -149,7 +150,8 @@ interpreter_init
 				this_oop->call_class_initializer // 调用构造函数
 
 
-执行java  main方法
+
+执行java main
 (*env)->CallStaticVoidMethod
 jni_CallStaticVoidMethod
 	jni_invoke_static
