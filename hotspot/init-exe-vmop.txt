@@ -5,8 +5,8 @@ main
 	InitializeJVM // 初始化jvm
  	LoadClass//classLoader加载main class
  	(*env)->CallStaticVoidMethod //CallStaticVoidMethod   宏定义 DEFINE_CALLSTATICMETHOD
-	jni_CallStaticVoidMethod
-	jni_invoke_static
+	jni_CallStaticVoidMethod //执行java main 方法
+		jni_invoke_static
 	(*vm)->DestroyJavaVM
 
 
@@ -24,7 +24,7 @@ InitializeJVM
  		//   类加载器
  		 SystemDictionary::compute_java_system_loader(THREAD);
 		create_vm_init_libraries();//加载agent库
- 		 CompileBroker::compilation_init();
+ 		 CompileBroker::compilation_init();// 编译线程
 		// 加载管理类
   		Management::initialize(THREAD);
 		 WatcherThread::start();
@@ -105,10 +105,15 @@ interpreter_init
    			  Interpreter::_entry_table[Interpreter::kind] = generate_method_entry(Interpreter::kind);
 					generate_normal_entry  // 汇编指令
 						generate_fixed_frame
-						 __ dispatch_next
-							 increment(r13）// PC 指针+1
+						generate_counter_incr // 计数器 执行超过阀值编译执行
+						__ dispatch_next
+							increment(r13）// PC 指针+1
 							dispatch_base  //jmp 到java二进制
-					  // Bytecodes  为vm 指令生成二进制 	// 触发模版生成二进制
+						// Handle overflow of counter and compile method 触发方法编译的入口 单独章节分享
+				    __ bind(invocation_counter_overflow);
+				    generate_counter_overflow(&continue_after_compile);//执行超过阀值编译执行
+
+					// Bytecodes  为vm 指令生成二进制 	// 触发模版生成二进制
 			 		set_entry_points_for_all_bytes();
 						 set_entry_points(code);
 						 		Interpreter::_normal_table.set_entry(code, entry);
@@ -160,6 +165,52 @@ jni_CallStaticVoidMethod
 	// java方法编译成  vm指令
     CompileBroker::compile_method
     StubRoutines::call_stub()// 跳转到generate_call_stub  生成call_stub
+
+
+# 编译执行过程分析
+// generate_normal_entry 设置计数器 超过阀值执行 generate_counter_overflow
+generate_counter_overflow(&continue_after_compile);//执行超过阀值编译执行
+  	__ call_VM(noreg,
+         CAST_FROM_FN_PTR(address,
+                          InterpreterRuntime::frequency_counter_overflow),
+         c_rarg1);
+    frequency_counter_overflow
+    	//E:\source\hotspot7\src\share\vm\runtime\compilationPolicy.cpp
+	    CompilationPolicy::policy()->method_invocation_event(method, CHECK_NULL);
+	    	CompileBroker::compile_method(m, InvocationEntryBci,m, hot_count, comment, CHECK);
+	    		CompilationPolicy::policy()->compilation_level(method, osr_bci);
+	    		methodOopDesc::load_signature_classes(method, CHECK_0);
+	    		compile_method_base
+	    			compilation_is_in_queue // 编译任务入队列
+	    			create_compile_task
+
+	    //counter overflow in a loop => try to do on-stack-replacement
+	    method->lookup_osr_nmethod_for(bci);
+	    CompilationPolicy::policy()->method_back_branch_event
+
+// InitializeJVM中启动编译线程 CompileBroker::compilation_init();
+compiler_thread_loop
+	invoke_compiler_on_method
+		compiler(task->comp_level())->compile_method(&ci_env, target, osr_bci);
+			//E:\source\hotspot7\src\share\vm\c1\c1_Compilation.cpp  以C1为例
+			Compilation::compile_method
+				compile_java_method()
+					build_hir();//构建hir
+						_hir->optimize()
+							_hir->compute_code()
+								ComputeLinearScanOrder compute_order(start());
+  								_num_loops = compute_order.num_loops();
+								_code = compute_order.linear_scan_order();
+							_hir->compute_use_counts
+							_hir->verify()
+					emit_lir();
+						hir()->iterate_linear_scan_order(&gen);//执行闭包
+						allocator->do_linear_scan()
+					emit_code_body();
+						code()->initialize_oop_recorder
+						LIR_Assembler.emit_code(hir()->code())
+				install_code(frame_size)//安装    
+
 
 
 
