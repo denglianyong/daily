@@ -214,6 +214,100 @@ compiler_thread_loop
 
 
 
+#GC内存回收 
+universe_init 
+	Universe::initialize_heap()
+		new ConcurrentMarkSweepPolicy()//CMS为例
+				initialize_all()
+				initialize_flags();
+    			initialize_size_info();
+				initialize_generations
+  					initialize_perm_generation // 永久代
+					new GenerationSpec  //新生代
+					new GenerationSpec  //老生代
+		new GenCollectedHeap(gc_policy)//分代堆
+		Universe::heap()->initialize();
+			heap_address = allocate()
+				 os::reserve_memory_special 向OS申请内存
+			_reserved = MemRegion
+			collector_policy()->create_rem_set// 记录跨代引用
+			_gen_specs[i]->init//  新生代 new DefNewGeneration 老年代 new ConcurrentMarkSweepGeneration
+			create_cms_collector()// 创建GC
+    CompactingPermGenGen::initialize_oops()	//压缩
+
+// GC 后台触发(还有new 对象内存不足，前台触发)
+ConcurrentMarkSweepThread::run()
+	 CMSCollector::collect_in_background
+	 	VM_CMS_Initial_Mark
+	 		_collector->do_CMS_operation
+	 			checkpointRootsFinal
+	 				gch->do_collection
+	 					_gens[i]->collect
+	 					 collector()->collect
+	 					 acquire_control_and_collect
+	 					 // 压缩//执行压缩并标记清理，底层核心实现是GenMarkSweep
+	 					 	do_compaction_work	
+	 					 		GenMarkSweep::invoke_at_safepoint
+	 					 			mark_sweep_phase1
+	 					 			mark_sweep_phase2
+	 					 			mark_sweep_phase3
+	 					 			mark_sweep_phase4
+	 					 			deallocate_stacks
+	 					 	// 标记清理 
+	 					 	do_mark_sweep_work
+	 					 		collect_in_foreground
+
+	 	markFromRoots
+	 	preclean
+	 	VM_CMS_Final_Remark
+	 	sweep
+
+_gens[i]->collect 新生代
+DefNewGeneration.collect
+//FastScanClosure用来遍历年轻代中的存活对象oop，
+  //第二个参数为true，表示会将oop对应的卡表项置为youngergen_card
+  set_promo_failure_scan_stack_closure(&fsc_with_no_gc_barrier);
+  gch->gen_process_strong_roots
+  	SharedHeap::process_strong_roots// General strong roots.
+  	Generation::oop_iterate
+  	space_iterate(&blk) // blk=GenerationOopIterateClosure
+  		DefNewGeneration::space_iterate
+  			// blk=GenerationOopIterateClosure
+	  		blk->do_space(eden());
+	  		blk->do_space(from());
+	  		blk->do_space(to());
+	  			space->oop_iterate // 迭代回收space
+	  				object_iterate(ObjectToOopClosure) // 迭代回收oop
+	  				object_iterate_from(bm, ObjectToOopClosure);	//ContiguousSpace
+	  				ObjectToOopClosure->do_object(oop(p));
+	  					//E:\source\hotspot7\src\share\vm\oops\oop.inline.hpp
+  						obj->oop_iterate(_cl);
+  							// E:\source\hotspot7\src\share\vm\oops\klass.hpp
+  							blueprint()->oop_oop_iterate##nv_suffix(this, blk);
+  								obj->oop_iterate_header
+  									oopDesc::oop_iterate_header 
+  										(ScanClosure)->do_oop // 从根节点开始回收为例
+  											ScanClosure::do_oop_work(p)
+  												load_heap_oop
+  												decode_heap_oop_not_null
+  												DefNewGeneration->copy_to_survivor_space(obj)
+  													to()->allocate(s)
+  													_next_gen->promote
+  													old->forward_to(obj);
+  									InstanceKlass_BOUNDED_OOP_MAP_ITERATE
+
+
+
+
+  // 交换from  --to
+  swap_spaces();
+
+
+
+DefNewGeneration 新声代复制算法
+TenuredGeneration 老年代 新声代  标记-压缩-清理算法 
+
+
 虚拟机指令 生成器
 E:\source\hotspot7\src\cpu\x86\vm\templateInterpreter_x86_64.cpp
 
