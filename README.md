@@ -1,3 +1,8 @@
+给powerjob提bug
+https://github.com/PowerJob/PowerJob/issues/404
+
+
+
 如果无法查看图片，请配置hosts(c:\windows\system32\drivers\etc)
 # GitHub Start 
 192.30.253.112    Build software better, together 
