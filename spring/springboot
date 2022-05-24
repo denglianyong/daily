@@ -19,6 +19,9 @@ fresh
 			ConfigurationClassPostProcessor.processConfigBeanDefinitions
 				ConfigurationClassUtils.checkConfigurationClassCandidate
 					metadata.getAnnotationAttributes(Configuration.class.getName())// 找出带@Configuration注解的类
+					AutowiredAnnotationBeanPostProcessor
+					CommonAnnotationBeanPostProcessor
+					EventListenerMethodProcessor //  一堆注解的处理器
 	
 	ConfigurationClassParser.parse  解析 @Compontent  @CompontentScan @Bean 等注解
 		deferredImportSelectorHandler.process()
