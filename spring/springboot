@@ -58,6 +58,29 @@ ServletWebServerApplicationContext.onRefresh();
 			getJettyWebServer(server);
 				initialize();
 					server.start();// 启动web server
+					handleDeferredInitialize(handler);//延迟启动springMVC框架
+						ServletHolder.initialize--initServlet
+						FrameworkServlet.initServletBean
+							initWebApplicationContext
+								onRefresh(wac);// 回调DispatcherServlet,springMVC初始化继续讲解
+								
 		
-	
+
+
+springMVC初始化
+springboot-autoconfigure.jar中meta-inf/spring.factory配置EnableAutoConfiguration=DispatcherServletAutoConfiguration
+@Bean配置 注入DispatcherServlet
+onRefresh
+	initStrategies(context);//完成springMVC装配
+		initMultipartResolver(context);
+		initLocaleResolver(context);
+		initThemeResolver(context);
+		initHandlerMappings(context);
+		initHandlerAdapters(context);
+		initHandlerExceptionResolvers(context);
+		initRequestToViewNameTranslator(context);
+		initViewResolvers(context);
+		initFlashMapManager(context);
+
+		
  
