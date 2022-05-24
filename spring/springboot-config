@@ -1,3 +1,5 @@
+
+@Configuration注解处理过程
 springbootApplication.run
  prepareEnvironment
   BootstrapListener.onEvent   
@@ -26,3 +28,36 @@ fresh
 					//处理@Component @PropertySources @ComponentScan @Import @ImportResource  @Bean
 					ConfigurationClassParser.doProcessConfigurationClass  
 	
+自动装配注解
+@EnableAutoConfiguration
+	AutoConfigurationImportSelector
+		selectImports
+			getAutoConfigurationEntry
+			getCandidateConfigurations
+			SpringFactoriesLoader.loadFactoryNames  加载jar包中所有的meta-inf/spring.factory下配置的EnableAutoConfiguration
+			
+springboot启动
+SpringApplication(primarySources).run(args)	// 构造函数中 加载 listener  ApplicationContextInitializer
+		getRunListeners // 回调构造函数中的listener
+		prepareEnvironment // 配置环境 profile
+		createApplicationContext //创建spring容器的ApplicationContext=AnnotationConfigServletWebServerApplicationContext
+		prepareContext
+		refreshContext // 调用spring的 refresh 开始准备容器  onRefresh中启动tomcat jetty
+		callRunners    // 启动应用中的命令
+		
+
+tomcat,jetty启动过程
+AnnotationConfigServletWebServerApplicationContext->ServletWebServerApplicationContext->AbstractApplicationContext
+当refreshContext.refresh 最终调用AbstractApplicationContext的refresh,回调到
+ServletWebServerApplicationContext.onRefresh();
+	createWebServer();
+		ServletWebServerFactory factory = getWebServerFactory();
+		this.webServer = factory.getWebServer(getSelfInitializer())
+			Server server = createServer(address);
+			server.setHandler(addHandlerWrappers(context));
+			getJettyWebServer(server);
+				initialize();
+					server.start();// 启动web server
+		
+	
+ 
