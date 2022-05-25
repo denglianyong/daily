@@ -1,5 +1,57 @@
+springboot启动过程
+SpringApplication(primarySources).run(args)	// 构造函数中 加载 listener  ApplicationContextInitializer
+		getRunListeners // 回调构造函数中的listener
+		prepareEnvironment // 配置环境 profile
+		createApplicationContext //创建spring容器的ApplicationContext=AnnotationConfigServletWebServerApplicationContext
+		prepareContext
+		refreshContext // 调用spring的 refresh 开始准备容器  onRefresh中启动tomcat jetty
+		callRunners    // 启动应用中的命令
 
-@Configuration注解处理过程
+		
+spring容器启动
+AnnotationConfigServletWebServerApplicationContext->ServletWebServerApplicationContext->AbstractApplicationContext
+refreshContext(上一节)-->AbstractApplicationContext.refresh
+		prepareRefresh();
+		// Tell the subclass to refresh the internal bean factory.
+		ConfigurableListableBeanFactory beanFactory = obtainFreshBeanFactory();
+
+		// Prepare the bean factory for use in this context.
+		prepareBeanFactory(beanFactory);
+
+		// Allows post-processing of the bean factory in context subclasses.
+		postProcessBeanFactory(beanFactory);
+
+		// Invoke factory processors registered as beans in the context. 
+		//回调beanFactoryPostProcessor 以 @Configuration 处理器ConfigurationClassPostProcessor
+		invokeBeanFactoryPostProcessors(beanFactory);
+
+		// Register bean processors that intercept bean creation.
+		// 注册 bean后置处理器
+		registerBeanPostProcessors(beanFactory);
+
+		// Initialize message source for this context.
+		initMessageSource();
+
+		// Initialize event multicaster for this context.
+		initApplicationEventMulticaster();
+
+		// Initialize other special beans in specific context subclasses.
+		// 启动 webserver tomcat
+		onRefresh();
+
+		// Check for listener beans and register them.
+		registerListeners();
+
+		// Instantiate all remaining (non-lazy-init) singletons. 初始化bean
+		finishBeanFactoryInitialization(beanFactory);
+
+		// Last step: publish corresponding event.
+
+		finishRefresh();
+	
+		
+
+@Configuration注解注册 ConfigurationClassPostProcessor
 springbootApplication.run
  prepareEnvironment
   BootstrapListener.onEvent   
@@ -16,7 +68,8 @@ springbootApplication.run
 					
 				
 				
-fresh @Configuration
+@Configuration处理，回调 ConfigurationClassPostProcessor
+fresh 回调 上一节 ConfigurationClassPostProcessor
 	invokeBeanFactoryPostProcessors
 		postProcessor.postProcessBeanDefinitionRegistry
 		ConfigurationClassPostProcessor.processConfigBeanDefinitions(registry);
@@ -38,6 +91,8 @@ fresh @Configuration
 								ConfigurationClassParser.processImports
 								//处理@Component @PropertySources @ComponentScan @Import @ImportResource  @Bean
 								ConfigurationClassParser.doProcessConfigurationClass
+
+spring 主流程fresh 主流程								
 			
 					
 	
@@ -49,18 +104,11 @@ fresh @Configuration
 			getCandidateConfigurations
 			SpringFactoriesLoader.loadFactoryNames  加载jar包中所有的meta-inf/spring.factory下配置的EnableAutoConfiguration
 			
-springboot启动
-SpringApplication(primarySources).run(args)	// 构造函数中 加载 listener  ApplicationContextInitializer
-		getRunListeners // 回调构造函数中的listener
-		prepareEnvironment // 配置环境 profile
-		createApplicationContext //创建spring容器的ApplicationContext=AnnotationConfigServletWebServerApplicationContext
-		prepareContext
-		refreshContext // 调用spring的 refresh 开始准备容器  onRefresh中启动tomcat jetty
-		callRunners    // 启动应用中的命令
+
 		
 
 tomcat,jetty启动过程
-AnnotationConfigServletWebServerApplicationContext->ServletWebServerApplicationContext->AbstractApplicationContext
+
 当refreshContext.refresh 最终调用AbstractApplicationContext的refresh,回调到
 ServletWebServerApplicationContext.onRefresh();
 	createWebServer();
