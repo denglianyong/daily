@@ -16,7 +16,7 @@ springbootApplication.run
 					
 				
 				
-fresh
+fresh @Configuration
 	invokeBeanFactoryPostProcessors
 		postProcessor.postProcessBeanDefinitionRegistry
 		ConfigurationClassPostProcessor.processConfigBeanDefinitions(registry);
@@ -24,14 +24,22 @@ fresh
 				ConfigurationClassUtils.checkConfigurationClassCandidate
 					metadata.getAnnotationAttributes(Configuration.class.getName())// 找出带@Configuration注解的类
 
-	
-	ConfigurationClassParser.parse  解析 @Compontent  @CompontentScan @Bean 等注解
-		deferredImportSelectorHandler.process()
-			ConfigurationClassParser.process
-				ConfigurationClassParser.DeferredImportSelectorGroupingHandler.processGroupImports //import依赖
-					ConfigurationClassParser.processImports
-					//处理@Component @PropertySources @ComponentScan @Import @ImportResource  @Bean
-					ConfigurationClassParser.doProcessConfigurationClass  
+				ConfigurationClassParser.parse  解析 @Compontent  @CompontentScan @Bean 等注解
+					ConfigurationClassParser.processConfigurationClass
+						ConfigurationClassParser.doProcessConfigurationClass
+							componentScanParser.parse
+								scanner.doScan //扫描class文件
+									scanner.findCandidateComponents
+										scanner.scanCandidateComponents
+					
+					deferredImportSelectorHandler.process()
+						ConfigurationClassParser.process
+							ConfigurationClassParser.DeferredImportSelectorGroupingHandler.processGroupImports //import依赖
+								ConfigurationClassParser.processImports
+								//处理@Component @PropertySources @ComponentScan @Import @ImportResource  @Bean
+								ConfigurationClassParser.doProcessConfigurationClass
+			
+					
 	
 自动装配注解
 @EnableAutoConfiguration
