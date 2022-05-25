@@ -90,11 +90,7 @@ fresh 回调 上一节 ConfigurationClassPostProcessor
 							ConfigurationClassParser.DeferredImportSelectorGroupingHandler.processGroupImports //import依赖
 								ConfigurationClassParser.processImports
 								//处理@Component @PropertySources @ComponentScan @Import @ImportResource  @Bean
-								ConfigurationClassParser.doProcessConfigurationClass
-
-spring 主流程fresh 主流程								
-			
-					
+								ConfigurationClassParser.doProcessConfigurationClass					
 	
 自动装配注解
 @EnableAutoConfiguration
