@@ -1,0 +1,42 @@
+mysql5.7.16
+入口：sql/main.cc--main-mysqld_main(mysqld.cc)
+init_server_components // 初始化组件
+mysql_bin_log.init_gtid_sets 
+setup_conn_event_handler_threads //开启socket 处理请求
+	mysql_thread_create 
+	  socket_conn_event_handler
+		conn_acceptor->connection_event_loop();
+			mgr->process_new_connection
+			m_connection_handler->add_connection
+				do_command
+					dispatch_command
+						  case COM_QUERY:// 以查询为例
+						  alloc_query //从网络数据包中读取Query并存入thd->query;vio
+						    //  主干流程 解析SQL 成lex语法树  ；  存入THD->lex  ；里边 mysql_execute_command 不太合理
+						   mysql_parse(thd, &parser_state);
+								parse_sql  // 解析SQL MySQLParse->MySQLLex
+								mysql_execute_command 
+									case:SQLCOM_SELECT
+									execute_sqlcom_select
+										open_tables_for_query //打开表
+										handle_query
+											unit->prepare
+											unit->optimize// 优化
+											select->join->exec();//执行SQL
+												do_select
+													 join->first_select -- first_select=sub_select (补充赋值地点)
+														//// QEP_TAB:: pick_table_access_method  在sql_executor.cc 同文件
+														qep_tab->read_first_record 
+															  case JT_EQ_REF:
+															  read_first_record= join_read_key;
+															  //存储引擎ha_innobase::index_read  以innodb为例     
+															  //  storage/innobase/handler/ha_innodb.cc
+																table->file->ha_index_read_map ==index_read_map
+																	ha_innobase::index_read
+																		row_search_mvcc //多版本读取 storage/row包下 读取行
+
+row_search_mvcc(接上一节)
+	mtr_start
+	row_sel_try_search_shortcut_for_mysql
+	mtr_commit
+	
