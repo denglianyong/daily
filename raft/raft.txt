@@ -1,0 +1,67 @@
+AtomicServer#main
+AtomicServer.start
+	RaftRpcServerFactory.createRaftRpcServer
+		createRaftRpcServer
+			RpcFactoryHelper.rpcFactory().createRpcServer(endpoint);
+			addRaftRequestProcessors(rpcServer, raftExecutor, cliExecutor);// 命令处理器
+				  rpcServer.registerProcessor(AppendEntriesRequestProcessor);// 注册日志处理器
+	AtomicRangeGroup.start
+		RaftGroupService.start
+			RaftServiceFactory.createAndInitRaftNode
+				NodeImpl=createRaftNode // 创建raft节点
+				NodeImpl.init
+					RepeatedTimer#handleVoteTimeout    //投票超时重新发起选举
+					RepeatedTimer#handleElectionTimeout // 超时发起选举
+					RepeatedTimer#handleStepDownTimeout
+					RepeatedTimer#handleSnapshotTimeout //定时snapshot
+					applyDisruptor.handleEventsWith(new LogEntryAndClosureHandler()// 内存队列，并发快，日志应用于状态机
+					initLogStorage //初始化日志 存储
+						LogManager.init(opts);
+							Disruptor.handleEventsWith(new StableClosureEventHandler());// 主从复制时间处理器
+					initMetaStorage  // 初始化元数据
+					initFSMCaller // 初始化状态机
+						FSMCallerImpl.init(opts);
+							Disruptor.handleEventsWith(new ApplyTaskHandler());// 应用日志到状态机
+					initSnapshotStorage  //初始化快照
+					new ReplicatorGroupImpl() //  主从复制组
+					new DefaultRaftClientService(this.replicatorGroup);
+
+// 选主
+handleElectionTimeout
+	 preVote()
+		prevVoteCtx.init    // 初始化投票箱  超过半数才能当选
+		rpcService.preVote // 拉票
+		prevVoteCtx.grant  // 判断是否当选
+		OnPreVoteRpcDone.run
+			handlePreVoteResponse  //  处理 投票结果
+				Ballot.prevVoteCtx.grant(peerId) 
+				electSelf()  // 当选
+					becomeLeader()
+						replicatorGroup.addReplicator(peer)//主从复制，心跳
+							Replicator.start
+								     Replicator.startHeartbeatTimer()
+										onTimeout#id.setError#onError.onError
+											sendHeartbeat(id)
+											 Replicator.sendEmptyEntries
+										
+
+从接收日志，replay
+AppendEntriesRequestProcessor
+	processRequest0
+		NodeImpl.handleAppendEntriesRequest
+			logManager.appendEntries(entries, FollowerStableClosure);
+				diskQueue.publishEvent  
+				StableClosureEventHandler.onEvent  //在LogManager.init设置
+					FollowerStableClosure.run(Status.OK());
+						BallotBox.commitAt
+							FSMCallerImpl.onCommitted(lastCommittedIndex);
+								enqueueTask
+								taskQueue.publishEvent(tpl) //FSMCallerImpl.init(opts); 设置handler
+								ApplyTaskHandler.onEvent
+									runApplyTask
+										  doCommitted(maxCommittedIndex);
+											fsm.onApply(iter); //  回调应用程序方法，replay 日志
+								 
+							
+				
+			
